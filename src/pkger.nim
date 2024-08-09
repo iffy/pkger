@@ -149,9 +149,9 @@ proc cmd_init(dirname: string) =
   let pkgerdir = dirname/"pkger"
   createDir pkgerdir
   writeFile(pkgerdir/".gitignore", """
-./lazy/*
-./_cache
-./_packages
+lazy
+_cache
+_packages
 """)
 
   cmd_updatepackagelist(pkgerContext())
