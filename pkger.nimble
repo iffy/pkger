@@ -12,4 +12,3 @@ bin           = @["pkger"]
 
 requires "nim >= 1.6.0"
 requires "argparse"
-requires "db_connecter"
