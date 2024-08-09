@@ -46,9 +46,9 @@ proc parseNimbleFile*(path: string): NimbleFileData =
       result.version = components[1].split('"')[1]
     of "version":
       result.version = components[2].split('"')[1]
-    of "srcDir:":
+    of "srcdir:":
       result.srcDir = components[1].split('"')[1]
-    of "srcDir":
+    of "srcdir":
       result.srcDir = components[2].split('"')[1]
     of "requires:", "requires":
       result.requires.add sline.parseRequiresLine()
