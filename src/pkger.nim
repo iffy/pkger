@@ -88,6 +88,7 @@ proc cmd_fetch(ctx: PkgerContext) =
   for pin in pinned:
     newpinned.add(ctx.ensurePresent(pin.toReq()))
   ctx.setPinnedReqs(newpinned)
+  ctx.refreshNimCfg()
 
 proc cmd_listdeps(dir_or_nimblefile: string) =
   for req in listNimbleRequires(dir_or_nimblefile):
@@ -183,6 +184,9 @@ var p = newParser:
       run:
         var ctx = pkgerContext()
         cmd_updatepackagelist(ctx)
+    command("gennimcfg"):
+      run:
+        refreshNimCfg(pkgerContext())
 
 proc cli*(args: seq[string]) =
   try:

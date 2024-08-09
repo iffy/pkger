@@ -104,7 +104,8 @@ suite "use":
       cli @["use", "argparse"]
       check dirExists("pkger"/"lazy"/"argparse")
       check "argparse" in readFile("pkger"/"deps.json")
-      check "--path:\"pkger/lazy/argparse/src\"" in readFile("nim.cfg")
+      let expected_path = "pkger"/"lazy"/"argparse"/"src"
+      check &"--path:\"{expected_path}\"" in readFile("nim.cfg")
       checkpoint readFile("pkger"/"deps.json")
       
       removeDir("pkger"/"lazy")
