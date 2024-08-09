@@ -23,7 +23,7 @@ proc parseNimbleFile*(path: string): NimbleFileData =
     let components = sline.splitWhitespace()
     if components.len == 0:
       continue
-    case components[0]
+    case components[0].toLower()
     of "version:":
       result.version = components[1].split('"')[1]
     of "version":
