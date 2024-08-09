@@ -24,7 +24,7 @@ proc setNimCfgDirs(ctx: PkgerContext, dirs: seq[string]) =
     except:
       ""
   var body: seq[string]
-  body.add("--noNimblePath")
+  # body.add("--noNimblePath")
   for dir in dirs:
     body.add("--path:\"" & dir & "\"")
   
