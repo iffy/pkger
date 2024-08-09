@@ -1,0 +1,13 @@
+[ ] If a package fails to download, it shouldn't block others from downloading
+[ ] List deps of a project
+[ ] Let me specify `name@sha` for packages in the packages.json directory
+[ ] Add a "why" command
+[ ] Add command to list version requirements demanded by other packages for a particular package
+[ ] Handle case where project uses pkger + nimble
+[ ] Handle case where project uses pkger only
+[ ] Handle Mercurial
+[ ] If there's already pkgA@version1 and recursively something wants pkgA@version2, don't fail everything else, but list that things have conflicting wants for pkgA and let them manually fix it.
+[ ] Add `status` command to show deps that have conflicts
+[ ] Add `remove` command
+[ ] Let `use` be recursive
+[ ] handle ?subdir=<path> urls in nimble

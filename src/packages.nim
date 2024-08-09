@@ -9,20 +9,25 @@ import std/strformat
 import std/strutils
 import std/tempfiles
 import std/typetraits
+import std/sha1
 import std/uri
 
 import ./context
 import ./objs
 import ./commandline
 import ./nimblefiles
+import ./deps
 
+#-----------------------------------------------------------------
+# Package registry
+#-----------------------------------------------------------------
 const PACKAGES_REPO_URL = when defined(testmode):
     currentSourcePath().parentDir()/"../tests/data/packagesrepo"
   else:
     "https://github.com/nim-lang/packages"
 
 proc packages_repo_dir(ctx: PkgerContext): string =
-  relativePath(ctx.depsDir / "packages", ctx.workDir)
+  relativePath(ctx.depsDir / "_packages", ctx.workDir)
 
 proc updatePackagesRepo(ctx: PkgerContext) =
   ## Download the latest packages.json repo
@@ -33,9 +38,9 @@ proc updatePackagesRepo(ctx: PkgerContext) =
   else:
     # update existing clone?
     runsh(@["git", "fetch", "origin"], workingDir = packages_dir)
-    runsh(@["git", "merge", "origin/master"], workingDir = packages_dir)
+    runsh(@["git", "reset", "--hard", "FETCH_HEAD"], workingDir = packages_dir)
 
-proc getPackage*(ctx: PkgerContext, name: string): Option[Dep] =
+proc lookupPackageFromRegistry*(ctx: PkgerContext, name: string): Option[ReqSource] =
   ## Get package info for a particular package
   let data = parseJson(newFileStream(ctx.packages_repo_dir()/"packages.json", fmRead))
   for item in data:
@@ -47,10 +52,8 @@ proc getPackage*(ctx: PkgerContext, name: string): Option[Dep] =
         of "hg": fmHgRepo
         else: fmUnknown
       return some((
-        name: thisname,
         url: item{"url"}.getStr(),
         kind: depkind,
-        sha: "",
       ))
 
 proc updatePackagesDir*(ctx: PkgerContext) =
@@ -60,16 +63,61 @@ proc updatePackagesDir*(ctx: PkgerContext) =
 proc packageDownloadDir*(ctx: PkgerContext): string =
   ctx.depsDir/"lazy"
 
-proc ondiskPath*(ctx: PkgerContext, dep: Dep): string =
-  ## Return the path to where the source code is/should be
-  case dep.kind
-  of fmUnknown:
-    raise ValueError.newException("Can't choose path for unknown dep type: " & $dep)
-  of fmLocalFile:
-    return ctx.rootDir/dep.url
-  of fmGitRepo, fmHgRepo:
-    return ctx.depsDir/"lazy"/dep.name 
+proc nameFromURL*(ctx: PkgerContext, url: string): string =
+  let pinned = ctx.getPinnedReqs()
+  for req in pinned:
+    if req.src.url == url:
+      return req.pkgname
+  
+  let data = parseJson(newFileStream(ctx.packages_repo_dir()/"packages.json", fmRead))
+  for item in data:
+    let thisurl = item{"url"}.getStr()
+    if thisurl == url:
+      return item{"name"}.getStr()
 
+#-----------------------------------------------------------------
+# Git stuff
+#-----------------------------------------------------------------
+proc urlToDirname*(url: string): string =
+  let parsed = parseUri(url)
+  if parsed.path != "":
+    result = parsed.path.split("/")[^1]
+  else:
+    result = parsed.hostname
+  result &= "-" & $secureHash(url)
+
+proc cacheGitRepo*(ctx: PkgerContext, url: string, resetToVersion = ""): string =
+  ## Clone a git repo if it doesn't exist and return the path to the repo on disk
+  let cachedir = ctx.depsDir/"_cache"
+  createDir(cachedir)
+  let repodir = cachedir/urlToDirname(url)
+  result = repodir
+  if dirExists(repodir):
+    if resetToVersion != "":
+      runsh(@["git", "fetch", "origin"], workingDir = repodir)  
+  else:
+    runsh(@["git", "clone", url, repodir])
+  if resetToVersion != "":
+    try:
+      runsh(@["git", "reset", "--hard", resetToVersion], workingDir = repodir)
+    except:
+      if resetToVersion.startsWith("v"):
+        runsh(@["git", "reset", "--hard", resetToVersion.strip(chars={'v'})], workingDir = repodir)
+      else:
+        raise
+
+proc placeGitRepo*(ctx: PkgerContext, url: string, dstdir: string, resetToVersion = "") =
+  ## Ensure that a git repo exists at dstdir, using the available cached git repo if present
+  let srcdir = ctx.cacheGitRepo(url, resetToVersion)
+  info "cp -R " & relativePath(srcdir, ".") & " " & relativePath(dstdir, ".")
+  copyDirWithPermissions(srcdir, dstdir)
+
+proc readGitSha*(repodir: string): string =
+  runshout(@["git", "rev-parse", "HEAD"], workingDir = repodir).strip()
+
+#-----------------------------------------------------------------
+# Parsing and serializing
+#-----------------------------------------------------------------
 proc parseNumericVersion*(x: string): NumericVersion =
   x.split(".").mapIt(parseInt(it)).NumericVersion
 
@@ -78,139 +126,237 @@ proc `$`*(x: NumericVersion): string =
 
 proc `$`*(x: Version): string =
   case x.kind
-  of vVCS:
+  of vSHA:
     x.sha
-  of vLatest:
+  of vAnyVersion:
     ""
   of vNumeric:
     $x.nver
+  of vRange:
+    x.vrange
+
+proc nice*(x: InstalledPackage): string =
+  result = x.name
+  if x.version != "":
+    result &= " " & x.version
+  if x.sha != "":
+    result &= " " & x.sha
 
 proc parseVersion*(x: string): Version =
   ## Parse a string description of a version
   if x == "":
-    return Version(kind: vLatest)
+    return Version(kind: vAnyVersion)
   else:
     try:
       return Version(kind: vNumeric, nver: parseNumericVersion(x))
     except:
-      return Version(kind: vVCS, sha: x)
+      return Version(kind: vSHA, sha: x)
 
-proc locatePackage*(ctx: PkgerContext, package_desc: string): Option[DepAndVersion] =
-  ## Figure out *how* to get the given package
-  let parts = package_desc.split("@", 1)
+proc parse*(x: ReqNimbleDesc): ParsedNimbleReq =
+  let d = x.string.strip()
+  if ":" in d:
+    # url
+    let parts = d.split(seps={'#','@'}, 1)
+    let url = parts[0]
+    let version = if parts.len > 1:
+        parts[1]
+      else:
+        ""
+    return ParsedNimbleReq(
+      isUrl: true,
+      url: url,
+      version: version,
+    )
+  else:
+    let (name, version) = d.splitNimbleNameAndVersion()
+    return ParsedNimbleReq(
+      isUrl: false,
+      name: name,
+      version: version,
+    )
+
+proc pin*(req: Req, sha: string): PinnedReq =
+  (
+    pkgname: req.pkgname,
+    parent: req.parent,
+    src: req.src,
+    sha: sha,
+  )
+
+proc toReq*(pinned: PinnedReq): Req =
+  (
+    pkgname: pinned.pkgname,
+    parent: pinned.parent,
+    src: pinned.src,
+    version: Version(kind: vSHA, sha: pinned.sha),
+  )
+
+proc toReq*(ctx: PkgerContext, reqdesc: ReqDesc, parent: string): Req =
+  ## Parse a string requirement description into a Requirement
+  ## `parent` should be "" if this requirement is a base requirement
+  ## otherwise it should be the name of the pkg requiring this
+  let desc = reqdesc.string
+  let parts = desc.split("@", 1)
   let name_or_url = parts[0]
   let version = parseVersion(if parts.len > 1: parts[1] else: "")
   if dirExists(name_or_url):
     # localpath
-    var name = name_or_url
-    for nimblefile in findNimbleFiles(name_or_url):
-      let data = parseNimbleFile(nimblefile)
-      if data.name != "":
-        name = data.name
-    return some((
-      (
-        name: name,
+    let pkgname = getProjectNameFromNimble(name_or_url)
+    return (
+      pkgname: pkgname,
+      parent: parent,
+      src: (
         url: relativePath(name_or_url, ctx.rootDir),
         kind: fmLocalFile,
-        sha: "",
       ),
-      Version(kind: vLatest),
-    ))
-  else:
-    # is it in the package index?
-    let o = ctx.getPackage(name_or_url)
-    if o.isSome:
-      return some((o.get(), version))
-    # it's either a URL or it's invalid
-    var isGit = false
-    try:
-      discard execProcess("git", args = @["ls-remote", "--tags", name_or_url],
-        options={poUsePath})
-      isGit = true
-    except:
-      discard
-    
-    if isGit:
-      let tmpd = createTempDir("pkger", "clone")
-      try:
-        runsh(@["git", "clone", name_or_url, tmpd])
-        let name = getProjectNameFromNimble(tmpd)
-        let dep = (
-          name: name,
-          url: name_or_url,
-          kind: fmGitRepo,
-          sha: "",
-        )
-        let ondisk = ctx.ondiskPath(dep)
-        if not dirExists(ondisk):
-          ondisk.parentDir.createDir()
-          info &"mv {tmpd} {ondisk}"
-          moveDir(tmpd, ondisk)
-        return some((dep, version))
-      finally:
-        removeDir(tmpd)
-    
-    TODO "handle hg locating"
-
-proc gitClonePackage*(ctx: PkgerContext, dep: Dep, version: Version, dstdir: string): Dep =
-  ## Clone a repo, set it to the desired version then return the SHA
-  doAssert dep.kind == fmGitRepo
-  if dirExists(dstdir):
-    runsh(@["git", "fetch", "origin"], workingDir = dstdir)
-  else:
-    runsh(@["git", "clone", dep.url, relativePath(dstdir, ctx.workDir)])
-
-  # Move to the right version
-  case version.kind
-  of vLatest:
-    discard "It's already at the latest version"
-  of vVCS:
-    runsh(@["git", "reset", "--hard", version.sha], workingDir = dstdir)
-  of vNumeric:
-    runsh(@["git", "reset", "--hard", "v" & $version.nver], workingDir = dstdir)
+      version: version
+    )
   
-  # Get the resulting SHA
-  let sha = runshout(@["git", "rev-parse", "HEAD"], workingDir = dstdir).strip()
-  return (
-    name: dep.name,
-    url: dep.url,
-    kind: dep.kind,
-    sha: sha,
-  )
+  # Check package registry
+  let o = ctx.lookupPackageFromRegistry(name_or_url)
+  if o.isSome:
+    let pkgsrc = o.get()
+    return (
+      pkgname: name_or_url,
+      parent: parent,
+      src: pkgsrc,
+      version: version,
+    )
+  
+  # Try git
+  let isGit = block:
+    let parsed = parseUri(name_or_url)
+    if "git" in parsed.hostname or name_or_url.endsWith(".git"):
+      true
+    else:
+      try:
+        discard execProcess("git", args = @["ls-remote", "--tags", name_or_url],
+          options={poUsePath})
+        true
+      except:
+        false
+  if isGit:
+    let git_repo_path = ctx.cacheGitRepo(name_or_url)
+    let pkgname = getProjectNameFromNimble(git_repo_path)
+    return (
+      pkgname: pkgname,
+      parent: parent,
+      src: (
+        url: name_or_url,
+        kind: fmGitRepo,
+      ),
+      version: version
+    )
+ 
+  raise ValueError.newException("Mercurial not yet supported")
 
-proc fetch*(ctx: PkgerContext, dep: Dep, version = none[Version]()): Dep =
-  ## Put code for a single package in place
-  case dep.kind
+proc toReq*(ctx: PkgerContext, reqdesc: ReqNimbleDesc, parent: string): Req =
+  let parsed = reqdesc.parse()
+  case parsed.isUrl
+  of true:
+    var desc = parsed.url
+    if parsed.version != "":
+      desc &= "@" & parsed.version
+    return ctx.toReq(desc.ReqDesc, parent)
+  of false:
+    # not a URL
+    var req = ctx.toReq(parsed.name.ReqDesc, parent)
+    if parsed.version != "":
+      req.version = Version(kind: vRange, vrange: parsed.version)
+    return req
+    
+
+proc ondiskPath*(ctx: PkgerContext, req: Req): string =
+  ## Return the path to where the source code is/should be
+  case req.src.kind
   of fmUnknown:
-    TODO "Handle unknown package type"
+    raise ValueError.newException("Can't choose path for unknown dep type: " & $req)
   of fmLocalFile:
-    # It's local and already fetched. And if it isn't, pkger doesn't manage it anyway.
-    return dep
-  of fmGitRepo:
-    let path = ctx.ondiskPath(dep)
-    let ver = if version.isSome:
-        version.get()
-      elif dep.sha != "":
-        Version(kind: vVCS, sha: dep.sha)
-      else:
-        Version(kind: vLatest)
-    return ctx.gitClonePackage(dep, ver, path)
-  of fmHgRepo:
-    TODO "Handle Mercurial"
+    return ctx.rootDir/req.src.url
+  of fmGitRepo, fmHgRepo:
+    return ctx.depsDir/"lazy"/req.pkgname 
 
-proc placePackage*(ctx: PkgerContext, package_desc: string, dstdir: string): Dep =
-  ## Install a package@version in dstdir/{package}
-  let o = ctx.locatePackage(package_desc)
-  if o.isNone:
-    raise ValueError.newException("package not found: " & package_desc)
-  let vdep = o.get()
-  ctx.fetch(vdep.dep, some(vdep.version))
+
+proc ensurePresent*(ctx: PkgerContext, req: Req): PinnedReq =
+  ## Put code for a single package in place
+  case req.src.kind
+  of fmUnknown:
+    raise ValueError.newException("Can't fetch: " & $req)
+  of fmLocalFile:
+    if not dirExists(req.src.url):
+      raise ValueError.newException("Local package missing: " & $req)
+    return req.pin("")
+  of fmGitRepo:
+    let path = ctx.ondiskPath(req)
+    var resetToVersion = case req.version.kind
+      of vNumeric:
+        "v" & $req.version.nver
+      of vSHA:
+        req.version.sha
+      of vAnyVersion:
+        ""
+      of vRange:
+        ""
+    ctx.placeGitRepo(req.src.url, path, resetToVersion)
+    return req.pin(readGitSha(path))
+  of fmHgRepo:
+    raise ValueError.newException("Mercurial not yet supported")
+
+# proc placePackage*(ctx: PkgerContext, package_desc: string, dstdir: string): Dep =
+#   ## Install a package@version in dstdir/{package}
+#   let o = ctx.locatePackage(package_desc)
+#   if o.isNone:
+#     raise ValueError.newException("package not found: " & package_desc)
+#   let vdep = o.get()
+#   ctx.fetch(vdep.dep, some(vdep.version))
 
 proc getNimPathsFromProject*(dirname: string): seq[string] =
   ## Return what should be set as --path:X to add the given package
   ## to the path.
-  TODO "Handle the case where the project uses pkger instead of nimble"
-
   for nimblefile in findNimbleFiles(dirname):
     let data = parseNimbleFile(nimblefile)
     result.add(data.srcDir)
+
+proc installedPackages*(ctx: PkgerContext): seq[InstalledPackage] =
+  for pin in ctx.getPinnedReqs():
+    let path = ctx.ondiskPath(pin.toReq())
+    if not dirExists(path):
+      continue
+    let version = try:
+        getVersionFromNimble(path)
+      except:
+        ""
+    result.add((
+      name: pin.pkgname,
+      version: version,
+      sha: pin.sha,
+    ))
+
+proc allReqs*(ctx: PkgerContext): seq[RawReq] =
+  ## List all known requirements (without fetching anything) for this project
+  var packagesToProcess = @[(ctx.rootDir, "")]
+  for pin in ctx.getPinnedReqs():
+    let path = ctx.ondiskPath(pin.toReq())
+    if dirExists(path):
+      packagesToProcess.add((path, pin.parent))
+  while packagesToProcess.len > 0:
+    let (path, parent) = packagesToProcess.pop()
+    for reqdesc in listNimbleRequires(path):
+      let ndesc = reqdesc.ReqNimbleDesc.parse()
+      if ndesc.isUrl:
+        result.add((
+          name: ctx.nameFromURL(ndesc.url),
+          label: ndesc.url,
+          parent: parent,
+          version: ndesc.version,
+        ))
+      else:
+        if ndesc.name == "nim":
+          continue
+        result.add((
+          name: ndesc.name,
+          label: ndesc.name,
+          parent: parent,
+          version: ndesc.version,
+        ))
+    

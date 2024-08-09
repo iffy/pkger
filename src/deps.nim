@@ -5,11 +5,17 @@ import std/strutils
 import ./context
 import ./objs
 
-proc `%`*(x: Dep): JsonNode =
+proc `%`*(x: ReqSource): JsonNode =
   %* {
-    "name": x.name,
     "url": x.url,
     "kind": x.kind,
+  }
+
+proc `%`*(x: PinnedReq): JsonNode =
+  %* {
+    "pkgname": x.pkgname,
+    "parent": x.parent,
+    "src": x.src,
     "sha": x.sha,
   }
 
@@ -18,31 +24,26 @@ proc readDepsFile(ctx: PkgerContext): JsonNode =
     parseJson(readFile(ctx.depsDir/"deps.json"))
   except:
     %* {
-      "deps": {}
+      "pinned": {}
     }
 
 proc writeDepsFile(ctx: PkgerContext, data: JsonNode) =
   writeFile(ctx.depsDir/"deps.json", data.pretty())
 
-proc getDeps*(ctx: PkgerContext): seq[Dep] =
+proc getPinnedReqs*(ctx: PkgerContext): seq[PinnedReq] =
   let data = readDepsFile(ctx)
-  for name in data["deps"].keys():
-    let item = data["deps"][name]
-    result.add((
-      name: item{"name"}.getStr(),
-      url: item{"url"}.getStr(),
-      kind: parseEnum[DepKind](item{"kind"}.getStr()),
-      sha: item{"sha"}.getStr(),
-    ))
+  for name in data["pinned"].keys():
+    let item = data["pinned"][name]
+    result.add(to(item, PinnedReq))
 
-proc setDeps*(ctx: PkgerContext, deps: seq[Dep]) =
+proc setPinnedReqs*(ctx: PkgerContext, pinned: seq[PinnedReq]) =
   var data = readDepsFile(ctx)
-  data["deps"] = newJObject()
-  for dep in deps:
-    data["deps"][dep.name] = %dep
+  data["pinned"] = newJObject()
+  for req in pinned:
+    data["pinned"][req.pkgname] = %req
   ctx.writeDepsFile(data)
 
-proc addNewDeps*(ctx: PkgerContext, dep: seq[Dep]) =
-  var existing = ctx.getDeps()
-  existing.add(dep)
-  ctx.setDeps(existing)
+proc add*(ctx: PkgerContext, req: seq[PinnedReq]) =
+  var existing = ctx.getPinnedReqs()
+  existing.add(req)
+  ctx.setPinnedReqs(existing)

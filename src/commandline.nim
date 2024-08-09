@@ -1,9 +1,12 @@
 import std/logging
 import std/os
 import std/osproc
-import std/strformat
 import std/sequtils
+import std/strformat
 import std/strutils
+import std/tables
+
+putEnv("GIT_TERMINAL_PROMPT", "0")
 
 proc runsh*(args: seq[string], workingDir = "") =
   let
