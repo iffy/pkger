@@ -24,11 +24,15 @@ proc parseNimbleFile*(path: string): NimbleFileData =
     if components.len == 0:
       continue
     case components[0]
+    of "version:":
+      result.version = components[1].split('"')[1]
     of "version":
       result.version = components[2].split('"')[1]
+    of "srcDir:":
+      result.srcDir = components[1].split('"')[1]
     of "srcDir":
       result.srcDir = components[2].split('"')[1]
-    of "requires":
+    of "requires:", "requires":
       result.requires.add sline.split('"')[1]
     else:
       discard

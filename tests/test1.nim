@@ -200,6 +200,18 @@ suite "use":
       let deps = readFile("pkger"/"deps.json")
       check "argparse" in deps
   
+  test "use toml nimble":
+    withinTmpDir:
+      cli @["init"]
+      cli @["use", "uuids"]
+      cli @["use", "isaac"]
+      echo cliout @["status"]
+      writeFile("samp.nim", """
+import uuids
+echo $genUUID()
+      """)
+      echo execCmd("nim c samp.nim")
+  
   # test "use recursive":
   #   withinTmpDir:
   #     cli @["init"]

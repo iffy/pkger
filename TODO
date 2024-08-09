@@ -1,5 +1,4 @@
 [ ] If a package fails to download, it shouldn't block others from downloading
-[ ] List deps of a project
 [ ] Let me specify `name@sha` for packages in the packages.json directory
 [ ] Add a "why" command
 [ ] Add command to list version requirements demanded by other packages for a particular package
