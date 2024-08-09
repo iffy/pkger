@@ -9,5 +9,4 @@
 [ ] Add `remove` command
 [ ] Let `use` be recursive
 [ ] handle `?subdir=<path>` urls in nimble
-[ ] When `fetch`ing, don't do anything if a git repo is already at the right sha
 [ ] Make output easier to read while still keeping verbose output
