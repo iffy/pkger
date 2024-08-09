@@ -14,6 +14,24 @@ proc findNimbleFiles*(root: string): seq[string] =
   for nimblefile in walkFiles(root/"*.nimble"):
     result.add(nimblefile)
 
+proc parseRequiresLine*(x: string): seq[string] =
+  var state = "init"
+  var buf = ""
+  for c in x:
+    case state
+    of "init":
+      if c == '"':
+        state = "inside"
+    of "inside":
+      if c == '"':
+        result.add(buf)
+        buf.setLen(0)
+        state = "init"
+      else:
+        buf.add(c)
+    else:
+      discard
+
 proc parseNimbleFile*(path: string): NimbleFileData =
   ## Read a .nimble file and do a best effort attempt at parsing it
   ## Anyone who wants to improve this is welcome to
@@ -33,7 +51,7 @@ proc parseNimbleFile*(path: string): NimbleFileData =
     of "srcDir":
       result.srcDir = components[2].split('"')[1]
     of "requires:", "requires":
-      result.requires.add sline.split('"')[1]
+      result.requires.add sline.parseRequiresLine()
     else:
       discard
 

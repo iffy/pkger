@@ -10,6 +10,3 @@
 [ ] Add `remove` command
 [ ] Let `use` be recursive
 [ ] handle ?subdir=<path> urls in nimble
-[ ] handle multiple listing in requires
-  - See hmac requires "nim >= 1.6.10", "nimSHA2", "nimcrypto >= 0.5.4", "checksums >= 0.1.0"
-

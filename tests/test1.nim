@@ -235,6 +235,17 @@ requires "madeup >= 5"
     check "changer" in deps
     check "madeup >= 5" in deps
 
+test "listdeps singleline":
+  withinTmpDir:
+    writeFile("goo.nimble", """
+requires "nim >= 1.6.10", "nimSHA2", "nimcrypto >= 0.5.4", "checksums >= 0.1.0"
+""")
+    let deps = cliout @["listdeps", "."]
+    echo deps
+    check "nimSHA2" in deps
+    check "nimcrypto >= 0.5.4" in deps
+    check "checksums >= 0.1.0" in deps
+
 suite "status":
 
   test "package not installed":
