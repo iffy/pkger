@@ -1,7 +1,6 @@
 [ ] If a package fails to download, it shouldn't block others from downloading
 [ ] Let me specify `name@sha` for packages in the packages.json directory
-[ ] Add a "why" command
-[ ] Add command to list version requirements demanded by other packages for a particular package
+[ ] Add a `why` command
 [ ] Handle case where project uses pkger + nimble
 [ ] Handle case where project uses pkger only
 [ ] Handle Mercurial
@@ -9,4 +8,6 @@
 [ ] Add `status` command to show deps that have conflicts
 [ ] Add `remove` command
 [ ] Let `use` be recursive
-[ ] handle ?subdir=<path> urls in nimble
+[ ] handle `?subdir=<path>` urls in nimble
+[ ] When `fetch`ing, don't do anything if a git repo is already at the right sha
+[ ] Make output easier to read while still keeping verbose output

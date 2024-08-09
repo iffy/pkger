@@ -108,6 +108,15 @@ proc cacheGitRepo*(ctx: PkgerContext, url: string, resetToVersion = ""): string 
 
 proc placeGitRepo*(ctx: PkgerContext, url: string, dstdir: string, resetToVersion = "") =
   ## Ensure that a git repo exists at dstdir, using the available cached git repo if present
+  if dirExists(dstdir):
+    if resetToVersion != "":
+      let sha = try:
+          runshout(@["git", "rev-parse", "HEAD"], workingDir = dstdir).strip()
+        except: ""
+      if sha == resetToVersion:
+        return
+    else:
+      return
   let srcdir = ctx.cacheGitRepo(url, resetToVersion)
   info "cp -R " & relativePath(srcdir, ".") & " " & relativePath(dstdir, ".")
   copyDirWithPermissions(srcdir, dstdir)
