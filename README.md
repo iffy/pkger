@@ -7,6 +7,7 @@ A good enough Nim package manager.
 Some of these things might get fixed in [`nimble`](https://github.com/nim-lang/nimble) and [`atlas`](https://github.com/nim-lang/atlas), but until then:
 
 - `nimble lock` doesn't work well for cross-platform projects when there are platform-specific dependencies.
+- I don't like how frequently `nimble` checks (slowly) that packages are up to date.
 - `atlas` can't install specific versions of packages
 - I just want library code, not the binaries built as a result of `nimble install ...`
 
@@ -36,7 +37,7 @@ Initialize `pkger` use in a project with
 pkger init
 ```
 
-And then you'll go through iterations of checking what dependencies need to be installed (as defined in `.nimble` files) and installing the version you want.
+And then alternate running `pkger status` and `pkger use ...`.
 
 ### Check for unmet dependencies
 
