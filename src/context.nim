@@ -15,7 +15,7 @@ proc pkgerContext*(workDir: string): PkgerContext =
   ## Given a working directory path,
   ## return the context for that path
   var p = workDir
-  while not fileExists(p/"pkger.json"):
+  while not fileExists(p/"pkger"/"deps.json"):
     if p == p.parentDir():
       raise ValueError.newException("Not in a pkger directory")
     p = p.parentDir()

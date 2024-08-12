@@ -142,20 +142,21 @@ proc cmd_updatepackagelist(ctx: PkgerContext) =
 #---------------------------------------------------------
 proc cmd_init(dirname: string) =
   info &"initializing pkger in {dirname}"
-  if fileExists(dirname/"pkger.json"):
+  let pkgerdir = dirname/"pkger"
+  if fileExists(pkgerdir/"deps.json"):
     warn &"pkger already initialized"
     return
-  writeFile("pkger.json", "{}")
-
-  let pkgerdir = dirname/"pkger"
   createDir pkgerdir
+  writeFile(pkgerdir/"deps.json", "{}")
   writeFile(pkgerdir/".gitignore", """
 lazy
 _cache
 _packages
 """)
-
-  cmd_updatepackagelist(pkgerContext())
+  let ctx = pkgerContext(dirname)
+  ctx.setPinnedReqs(@[])
+  info &"created deps.json"
+  cmd_updatepackagelist(ctx)
 
 var p = newParser:
   # option("-d", "--depsdir", default=some("pkger"), help="Directory where pkger will keep deps")

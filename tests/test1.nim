@@ -68,8 +68,8 @@ if not dirExists(localPackagesRepo):
 test "init":
   withinTmpDir:
     cli @["init"]
-    check fileExists("pkger.json")
     check dirExists("pkger")
+    check fileExists("pkger"/"deps.json")
     check fileExists("pkger"/".gitignore")
 
 suite "updatepackagelist":

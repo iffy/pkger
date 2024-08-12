@@ -16,6 +16,12 @@ I like how `atlas` manages files within the "workspace" directory and updates `n
 
 Also, `nimble` and `atlas` have an advanced SAT solver for installing the right versions of things. This doesn't. You are the SAT solver, because 99% of the time, you can do a great job. `pkger status` will guide you to pick the right versions, but if you want a "broken" set of packages, you totally can.
 
+## Files and Directories
+
+- `pkger/deps.json` - contains all the pinned dependencies. Equivalent to a lock file
+- `pkger/lazy/` - where source code for all external packages are copied
+- `nim.cfg` - updated to point to packages defined in `pkger/deps.json`
+
 ## Installation
 
 ```
