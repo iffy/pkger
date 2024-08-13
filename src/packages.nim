@@ -91,6 +91,30 @@ proc urlToDirname*(url: string): string =
     result = parsed.hostname
   result &= "-" & $secureHash(url)
 
+proc gitGetSHA*(repodir: string, commitish: string): Option[string] =
+  try:
+    let (outp, rc) = execCmdEx("git rev-parse " & quoteShell(commitish),
+      options = {poUsePath},
+      workingDir = repodir)
+    if rc == 0:
+      return some(outp.strip())
+  except:
+    discard
+
+proc gitThingExists*(repodir: string, commitish: string): bool =
+  ## Return true if the commitish exists
+  gitGetSHA(repodir, commitish).isSome()
+
+proc gitSearchForCommitish*(repodir: string, version: string): string =
+  if repodir.gitThingExists(version):
+    return version
+  if version.startsWith("v"):
+    let unv = version.strip(chars={'v'}, leading = true, trailing = false)
+    if repodir.gitThingExists(unv):
+      return unv
+  if repodir.gitThingExists("origin/" & version):
+    return "origin/" & version
+
 proc cacheGitRepo*(ctx: PkgerContext, url: string, resetToVersion = ""): string =
   ## Clone a git repo if it doesn't exist and return the path to the repo on disk
   let cachedir = ctx.depsDir/"_cache"
@@ -103,13 +127,8 @@ proc cacheGitRepo*(ctx: PkgerContext, url: string, resetToVersion = ""): string 
   else:
     runsh(@["git", "clone", url, repodir])
   if resetToVersion != "":
-    try:
-      runsh(@["git", "reset", "--hard", resetToVersion], workingDir = repodir)
-    except:
-      if resetToVersion.startsWith("v"):
-        runsh(@["git", "reset", "--hard", resetToVersion.strip(chars={'v'})], workingDir = repodir)
-      else:
-        raise
+    var version = repodir.gitSearchForCommitish(resetToVersion)
+    runsh(@["git", "reset", "--hard", version], workingDir = repodir)
 
 proc placeGitRepo*(ctx: PkgerContext, url: string, dstdir: string, resetToVersion = "") =
   ## Ensure that a git repo exists at dstdir, using the available cached git repo if present

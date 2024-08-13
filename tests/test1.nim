@@ -201,6 +201,13 @@ suite "use":
       let deps = readFile("pkger"/"deps.json")
       check "argparse" in deps
   
+  test "use url@notmasterbranch":
+    withinTmpDir:
+      cli @["init"]
+      cli @["use", "https://github.com/iffy/nim-checksums@support-1.6.x"]
+      let deps = readFile("pkger"/"deps.json")
+      check "checksums" in deps
+  
   test "use toml nimble":
     withinTmpDir:
       cli @["init"]
