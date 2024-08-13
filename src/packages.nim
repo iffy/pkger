@@ -42,7 +42,12 @@ proc updatePackagesRepo(ctx: PkgerContext) =
 
 proc lookupPackageFromRegistry*(ctx: PkgerContext, name: string): Option[ReqSource] =
   ## Get package info for a particular package
-  let data = parseJson(newFileStream(ctx.packages_repo_dir()/"packages.json", fmRead))
+  let packages_json = ctx.packages_repo_dir()/"packages.json"
+  if not packages_json.fileExists():
+    ctx.updatePackagesRepo()
+  if not packages_json.fileExists():
+    raise ValueError.newException("Failed to get packages repo")
+  let data = parseJson(newFileStream(packages_json, fmRead))
   for item in data:
     let thisname = item{"name"}.getStr()
     if thisname == name:
