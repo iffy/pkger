@@ -142,7 +142,8 @@ suite "use":
       cli @["use", "https://github.com/iffy/nim-argparse.git"]
       check dirExists("pkger"/"lazy"/"argparse")
       check "argparse" in readFile("pkger"/"deps.json")
-      check "--path:\"pkger/lazy/argparse/src\"" in readFile("nim.cfg")
+      let expected_path = "pkger"/"lazy"/"argparse"/"src"
+      check &"--path:\"{expected_path}\"" in readFile("nim.cfg")
       checkpoint readFile("pkger"/"deps.json")
       
       removeDir("pkger"/"lazy")

@@ -83,10 +83,14 @@ proc use(ctx: PkgerContext, pkg: ReqDesc, parent = ""): seq[PinnedReq] =
 
 proc cmd_fetch(ctx: PkgerContext) =
   ## Fetch all the source packages that are missing
-  let pinned = ctx.getPinnedReqs()
+  let pinned = ctx.getPinnedReqs().sorted(proc (a,b: PinnedReq): int =
+    cmp(a.pkgname, b.pkgname)
+  )
   var newpinned: seq[PinnedReq]
   for pin in pinned:
+    stdout.write(pin.pkgname & " ...")
     newpinned.add(ctx.ensurePresent(pin.toReq()))
+    stdout.write(" OK\n")
   ctx.setPinnedReqs(newpinned)
   ctx.refreshNimCfg()
 

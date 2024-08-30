@@ -26,13 +26,14 @@ proc runsh*(args: seq[string], workingDir = "") =
     error &"[{pid}] FAILED {rc}"
     raise ValueError.newException("Error running: " & $args)
 
-proc runshout*(args: seq[string], workingDir = ""): string =
+proc runshout*(args: seq[string], workingDir = "", silent = false): string =
   let
     cmd = args[0]
     otherargs = args[1..^1]
   var logline = if workingDir == "": "$ " else: relativePath(workingDir, getCurrentDir()) & " $ "
   logline.add(args.mapIt(quoteShell(it)).join(" "))
-  info &"[EXEC] {logline}"
+  if not silent:
+    info &"[EXEC] {logline}"
   execProcess(cmd,
     workingDir = workingDir,
     args = otherargs,
