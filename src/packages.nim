@@ -125,10 +125,10 @@ proc cacheGitRepo*(ctx: PkgerContext, url: string, resetToVersion = ""): string 
     if resetToVersion != "":
       runsh(@["git", "fetch", "origin"], workingDir = repodir)  
   else:
-    runsh(@["git", "clone", url, repodir])
+    runsh(@["git", "clone", "--recurse-submodules", url, repodir])
   if resetToVersion != "":
     var version = repodir.gitSearchForCommitish(resetToVersion)
-    runsh(@["git", "reset", "--hard", version], workingDir = repodir)
+    runsh(@["git", "reset", "--recurse-submodules", "--hard", version], workingDir = repodir)
 
 proc placeGitRepo*(ctx: PkgerContext, url: string, dstdir: string, resetToVersion = "") =
   ## Ensure that a git repo exists at dstdir, using the available cached git repo if present
