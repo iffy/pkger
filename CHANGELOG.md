@@ -1,3 +1,7 @@
+# v0.1.1 - 2024-08-30
+
+- **FIX:** Packages with submodules are now supported
+
 # v0.1.0 - 2024-08-13
 
 - **NEW:** Remove need for `pkger.json` file in projects and instead key off of `pkger/deps.json`
