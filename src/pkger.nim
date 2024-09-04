@@ -53,12 +53,18 @@ proc setNimCfgDirs(ctx: PkgerContext, dirs: seq[string]) =
     lines.add("")
   writeFile(ctx.rootDir/"nim.cfg", lines.join("\n"))
 
+proc ensureLinuxStylePath(x: string): string =
+  when defined(windows):
+    x.replace("\\", "/")
+  else:
+    x
+
 proc refreshNimCfg*(ctx: PkgerContext) =
   let pinned = ctx.getPinnedReqs()
   var nimPaths: seq[string]
   for pin in pinned:
     let srcPath = ctx.ondiskPath(pin.toReq())
-    nimPaths.add(getNimPathsFromProject(srcPath).mapIt(relativePath(srcPath/it, ctx.rootDir)))
+    nimPaths.add(getNimPathsFromProject(srcPath).mapIt(relativePath(srcPath/it, ctx.rootDir).ensureLinuxStylePath()))
   ctx.setNimCfgDirs(nimPaths)
 
 proc use(ctx: PkgerContext, req: Req, parent = ""): seq[PinnedReq] =
