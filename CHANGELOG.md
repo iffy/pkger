@@ -1,3 +1,7 @@
+# v0.1.2 - 2024-09-04
+
+- **FIX:** On Windows use Linux-style paths in nim.cfg"
+
 # v0.1.1 - 2024-08-30
 
 - **FIX:** Packages with submodules are now supported
