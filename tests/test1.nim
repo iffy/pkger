@@ -19,13 +19,17 @@ proc tmpDir*(): string =
   result = TEMPDIR_ROOT / &"test{random.rand(10000000)}"
   result.createDir()
 
+template cd*(dir: string, body: untyped): untyped =
+  block:
+    let
+      olddir = getCurrentDir()
+    setCurrentDir(dir)
+    body
+    setCurrentDir(olddir)
+
 template withinTmpDir*(body:untyped):untyped =
-  let
-    tmp = tmpDir()
-    olddir = getCurrentDir()
-  setCurrentDir(tmp)
-  body
-  setCurrentDir(olddir)
+  cd(tmpDir()):
+    body
 
 let pkgerbin = currentSourcePath().parentDir().parentDir()/"pkger"
 # if not fileExists(pkgerbin):
@@ -76,8 +80,8 @@ suite "updatepackagelist":
   test "basic":
     withinTmpDir:
       cli @["init"]
-      check dirExists("pkger"/"_packages")
       var ctx = pkgerContext()
+      check dirExists(ctx.packages_repo_dir())
       check ctx.lookupPackageFromRegistry("argparse").get.url == "https://github.com/iffy/nim-argparse"
 
   test "again":
@@ -252,6 +256,14 @@ requires "nim >= 1.6.10", "nimSHA2", "nimcrypto >= 0.5.4", "checksums >= 0.1.0"
     check "nimSHA2" in deps
     check "nimcrypto >= 0.5.4" in deps
     check "checksums >= 0.1.0" in deps
+
+test "specific dir":
+  withinTmpDir:
+    createDir("a")
+    cd("a"):
+      cli @["init", "--dir", ".."/"packages"]
+      cli @["use", "hmac@0.3.2"]
+    check dirExists("packages"/"lazy"/"hmac")
 
 suite "status":
 
