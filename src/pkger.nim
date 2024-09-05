@@ -2,6 +2,7 @@ import std/logging
 import std/strformat
 import std/strutils
 import std/tables
+import std/json
 
 import argparse
 
@@ -150,9 +151,17 @@ proc cmd_updatepackagelist(ctx: PkgerContext) =
 #---------------------------------------------------------
 # porcelain
 #---------------------------------------------------------
-proc cmd_init(dirname: string) =
+proc cmd_init(dirname: string, given_pkgerdir: string) =
   info &"initializing pkger in {dirname}"
-  let pkgerdir = dirname/"pkger"
+  let pkgerconfig = dirname/"pkger.json"
+  if fileExists(pkgerconfig):
+    warn &"pkger already initialized"
+    return
+  
+  writeFile(pkgerconfig, pretty(%* {
+    "dir": given_pkgerdir,
+  }))
+  let pkgerdir = dirname/given_pkgerdir
   if fileExists(pkgerdir/"deps.json"):
     warn &"pkger already initialized"
     return
@@ -160,8 +169,6 @@ proc cmd_init(dirname: string) =
   writeFile(pkgerdir/"deps.json", "{}")
   writeFile(pkgerdir/".gitignore", """
 lazy
-_cache
-_packages
 """)
   let ctx = pkgerContext(dirname)
   ctx.setPinnedReqs(@[])
@@ -171,8 +178,9 @@ _packages
 var p = newParser:
   # option("-d", "--depsdir", default=some("pkger"), help="Directory where pkger will keep deps")
   command("init"):
+    option("--dir", "-d", help="Directory to store pkger information in", default=some("pkger"))
     run:
-      cmd_init(getCurrentDir())
+      cmd_init(getCurrentDir(), opts.dir)
   command("status"):
     run:
       cmd_status(pkgerContext())

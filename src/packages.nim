@@ -26,8 +26,11 @@ const PACKAGES_REPO_URL = when defined(testmode):
   else:
     "https://github.com/nim-lang/packages"
 
-proc packages_repo_dir(ctx: PkgerContext): string =
-  relativePath(ctx.depsDir / "_packages", ctx.workDir)
+proc packages_repo_dir*(ctx: PkgerContext): string =
+  getConfigDir() / "nimpkger" / "packages"
+
+proc cache_dir*(ctx: PkgerContext): string =
+  getConfigDir() / "nimpkger" / "_cache"
 
 proc updatePackagesRepo(ctx: PkgerContext) =
   ## Download the latest packages.json repo
@@ -117,7 +120,7 @@ proc gitSearchForCommitish*(repodir: string, version: string): string =
 
 proc cacheGitRepo*(ctx: PkgerContext, url: string, resetToVersion = ""): string =
   ## Clone a git repo if it doesn't exist and return the path to the repo on disk
-  let cachedir = ctx.depsDir/"_cache"
+  let cachedir = ctx.cache_dir()
   createDir(cachedir)
   let repodir = cachedir/urlToDirname(url)
   result = repodir
@@ -145,7 +148,7 @@ proc placeGitRepo*(ctx: PkgerContext, url: string, dstdir: string, resetToVersio
     else:
       return
   let srcdir = ctx.cacheGitRepo(url, resetToVersion)
-  info "cp -R " & relativePath(srcdir, ".") & " " & relativePath(dstdir, ".")
+  info "cp -R " & srcdir.niceDir & " " & dstdir.niceDir
   copyDirWithPermissions(srcdir, dstdir)
 
 #-----------------------------------------------------------------

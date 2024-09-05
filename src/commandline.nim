@@ -1,3 +1,4 @@
+import std/algorithm
 import std/logging
 import std/os
 import std/osproc
@@ -8,11 +9,23 @@ import std/tables
 
 putEnv("GIT_TERMINAL_PROMPT", "0")
 
+proc niceDir*(x: string): string =
+  ## Return a friendly relative or absolute path 
+  var paths = @[
+    "~" / relativePath(x, getHomeDir()),
+    relativePath(x, getCurrentDir()),
+    absolutePath(x),
+  ]
+  paths.sort(proc (a,b: string): int =
+    cmp(a.len, b.len)
+  )
+  paths[0]
+
 proc runsh*(args: seq[string], workingDir = "") =
   let
     cmd = args[0]
     otherargs = args[1..^1]
-  var logline = if workingDir == "": "$ " else: relativePath(workingDir, getCurrentDir()) & " $ "
+  var logline = if workingDir == "": "$ " else: workingDir.niceDir & " $ "
   logline.add(args.mapIt(quoteShell(it)).join(" "))
   info &"[EXEC] {logline}"
   var p = startProcess(cmd,
@@ -30,7 +43,7 @@ proc runshout*(args: seq[string], workingDir = "", silent = false): string =
   let
     cmd = args[0]
     otherargs = args[1..^1]
-  var logline = if workingDir == "": "$ " else: relativePath(workingDir, getCurrentDir()) & " $ "
+  var logline = if workingDir == "": "$ " else: workingDir.niceDir & " $ "
   logline.add(args.mapIt(quoteShell(it)).join(" "))
   if not silent:
     info &"[EXEC] {logline}"
