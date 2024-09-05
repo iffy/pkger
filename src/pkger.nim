@@ -160,14 +160,13 @@ proc cmd_init(dirname: string, given_pkgerdir: string) =
   
   writeFile(pkgerconfig, pretty(%* {
     "dir": given_pkgerdir,
-  }))
+  }) & "\n")
   let pkgerdir = dirname/given_pkgerdir
-  if fileExists(pkgerdir/"deps.json"):
-    warn &"pkger already initialized"
-    return
-  createDir pkgerdir
-  writeFile(pkgerdir/"deps.json", "{}")
-  writeFile(pkgerdir/".gitignore", """
+  if not fileExists(pkgerdir/"deps.json"):
+    createDir pkgerdir
+    writeFile(pkgerdir/"deps.json", "{}")
+  if not fileExists(pkgerdir/".gitignore"):
+    writeFile(pkgerdir/".gitignore", """
 lazy
 """)
   let ctx = pkgerContext(dirname)

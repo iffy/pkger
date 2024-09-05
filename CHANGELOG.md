@@ -1,3 +1,7 @@
+# v0.2.1 - 2024-09-05
+
+- **FIX:** Fix `init` giving warnings about already being initialized when not needed
+
 # v0.2.0 - 2024-09-05
 
 - **BREAKING CHANGE:** There is now a config file named pkger.json stored in each package.
