@@ -9,7 +9,7 @@ Some of these things might get fixed in [`nimble`](https://github.com/nim-lang/n
 - `nimble lock` doesn't work well for cross-platform projects when there are platform-specific dependencies.
 - I don't like how frequently `nimble` checks (slowly) that packages are up to date.
 - `atlas` can't install specific versions of packages
-- I just want library code, not the binaries built as a result of `nimble install ...`
+- I usually just want library code, not the binaries built as a result of `nimble install ...`
 
 ## Philosophy
 
@@ -19,6 +19,7 @@ Also, `nimble` and `atlas` have an advanced SAT solver for installing the right 
 
 ## Files and Directories
 
+- `pkger.json` - contains configuration for `pkger`
 - `pkger/deps.json` - contains all the pinned dependencies. Equivalent to a lock file
 - `pkger/lazy/` - where source code for all external packages are copied
 - `nim.cfg` - updated to point to packages defined in `pkger/deps.json`

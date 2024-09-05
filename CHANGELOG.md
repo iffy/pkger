@@ -1,3 +1,8 @@
+# v0.2.0 - 2024-09-05
+
+- **BREAKING CHANGE:** There is now a config file named pkger.json stored in each package.
+- **NEW:** When initializing a project, you can specify `--dir` to set where deps go
+
 # v0.1.2 - 2024-09-04
 
 - **FIX:** On Windows use Linux-style paths in nim.cfg"
