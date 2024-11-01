@@ -126,9 +126,17 @@ proc cacheGitRepo*(ctx: PkgerContext, url: string, resetToVersion = ""): string 
   result = repodir
   if dirExists(repodir):
     if resetToVersion != "":
-      runsh(@["git", "fetch", "origin"], workingDir = repodir)  
+      try:
+        runsh(@["git", "fetch", "origin"], workingDir = repodir)  
+      except:
+        logging.error &"Error running `git fetch origin` in {repodir}"
+        raise
   else:
-    runsh(@["git", "clone", "--recurse-submodules", url, repodir])
+    try:
+      runsh(@["git", "clone", "--recurse-submodules", url, repodir])
+    except:
+      logging.error &"Error running `git clone` for url={url} to dir={repodir}"
+      raise
   if resetToVersion != "":
     var version = repodir.gitSearchForCommitish(resetToVersion)
     runsh(@["git", "reset", "--recurse-submodules", "--hard", version], workingDir = repodir)

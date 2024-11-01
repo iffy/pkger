@@ -314,3 +314,12 @@ suite "ReqNimbleDesc":
     check t.isUrl == true
     check t.url == "https://github.com/iffy/nim-argparse.git"
     check t.version == "ce7b23e72dcfd1a962ce12e5943ef002a0f46e37"
+
+suite "functional":
+  test "websock repo":
+    withinTmpDir:
+      cli @["init"]
+      cli @["use", "https://github.com/status-im/nim-websock"]
+      cli @["fetch"]
+      removeDir "pkger"/"lazy"/"websock"
+      cli @["fetch"]
