@@ -1,3 +1,7 @@
+# v0.2.2 - 2024-11-01
+
+- **FIX:** Add test for websock repo
+
 # v0.2.1 - 2024-09-05
 
 - **FIX:** Fix `init` giving warnings about already being initialized when not needed

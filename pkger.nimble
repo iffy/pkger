@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.2.1"
+version       = "0.2.2"
 author        = "Matt Haggard"
 description   = "Simple package management for Nim"
 license       = "MIT"
