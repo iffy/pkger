@@ -1,3 +1,7 @@
+# v0.3.0 - 2025-03-12
+
+- **NEW:** Added a 'remove' command
+
 # v0.2.2 - 2024-11-01
 
 - **FIX:** Add test for websock repo
