@@ -322,7 +322,7 @@ proc ondiskPath*(ctx: PkgerContext, req: Req): string =
 
 
 proc ensurePresent*(ctx: PkgerContext, req: Req): PinnedReq =
-  ## Put code for a single package in place
+  ## Put source code for a single package in place
   case req.src.kind
   of fmUnknown:
     raise ValueError.newException("Can't fetch: " & $req)

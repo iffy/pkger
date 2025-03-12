@@ -233,6 +233,40 @@ echo $genUUID()
   #     check dirExists("pkger"/"lazy"/"regex")
   #     check dirExists("pkger"/"lazy"/"parsetoml")
 
+suite "remove":
+  test "localpath":
+    withinTmpDir:
+      cli @["init"]
+      createDir("foobar")
+      writeFile("foobar"/"foobar.nimble", "# garbage nimble file")
+      cli @["use", "./foobar"]
+      check "--path:\"foobar\"" in readFile("nim.cfg")
+      check "foobar" in readFile("pkger"/"deps.json")
+
+      cli @["remove", "foobar"]
+      check "--path:\"foobar\"" notin readFile("nim.cfg")
+      check "foobar" notin readFile("pkger"/"deps.json")
+
+      echo readFile("pkger"/"deps.json")
+      echo readFile("nim.cfg")
+
+  test "by name":
+    withinTmpDir:
+      cli @["init"]
+      cli @["use", "argparse"]
+      check dirExists("pkger"/"lazy"/"argparse")
+      check "argparse" in readFile("pkger"/"deps.json")
+      check "--path:\"pkger/lazy/argparse/src\"" in readFile("nim.cfg")
+
+      cli @["remove", "argparse"]
+      checkpoint readFile("pkger"/"deps.json")
+      check "argparse" notin readFile("pkger"/"deps.json")
+      check "--path:\"pkger/lazy/argparse/src\"" notin readFile("nim.cfg")
+      
+      removeDir("pkger"/"lazy")
+      cli @["fetch"]
+      check not dirExists("pkger"/"lazy"/"argparse")  
+
 test "listdeps":
   withinTmpDir:
     writeFile("goo.nimble", """

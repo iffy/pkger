@@ -1,0 +1,1 @@
+Added a 'remove' command

@@ -88,6 +88,18 @@ proc use(ctx: PkgerContext, pkg: ReqDesc, parent = ""): seq[PinnedReq] =
   let req = ctx.toReq(pkg, parent = parent)
   ctx.use(req)
 
+proc cmd_remove(ctx: PkgerContext, pkg: ReqDesc) =
+  let name = pkg.string
+  let pinned = ctx.getPinnedReqs()
+  var newpinned: seq[PinnedReq]
+  for pin in pinned:
+    if pin.pkgname == name:
+      continue
+    else:
+      newpinned.add(pin)
+  ctx.setPinnedReqs(newpinned)
+  ctx.refreshNimCfg()
+
 proc cmd_fetch(ctx: PkgerContext) =
   ## Fetch all the source packages that are missing
   let pinned = ctx.getPinnedReqs().sorted(proc (a,b: PinnedReq): int =
@@ -197,6 +209,11 @@ var p = newParser:
     arg("path", help="Path to .nimble file or containing dir")
     run:
       cmd_listdeps(opts.path)
+  command("remove"):
+    help("No longer use a package in this project")
+    arg("package", help="package name")
+    run:
+      cmd_remove(pkgerContext(), opts.package.ReqDesc)
   command("low"):
     command("updatepackagelist"):
       run:

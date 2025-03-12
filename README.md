@@ -83,3 +83,9 @@ pkger use https://github.com/iffy/nim-keyring@811a2d0d77221f1077e060e802dc681cfa
 ```
 pkger fetch
 ```
+
+### Remove a dependency
+
+```
+pkger remove keyring
+```
