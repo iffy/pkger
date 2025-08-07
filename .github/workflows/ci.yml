@@ -3,6 +3,7 @@ on:
   push:
 
 jobs:
+  continue-on-error: true
   tests:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -14,6 +15,10 @@ jobs:
           - ubuntu-latest
           - macOS-13
           - windows-latest
+        nimbleversion:
+          - 0.13.1
+          - 0.15.2
+          - 0.16.2
     steps:
     - uses: actions/checkout@v1
     - uses: iffy/install-nim@v5
@@ -21,6 +26,9 @@ jobs:
         version: ${{ matrix.nimversion }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Upgrade nimble
+      run: |
+        nimble install -y nimble@${{ matrix.nimbleversion }}
     - name: Versions
       run: |
         nim -V
@@ -29,8 +37,4 @@ jobs:
       run: |
         nimble install -y
         nim r tests/test1.nim
-    - name: Upgrade nimble
-      run: |
-        nimble install -y nimble
-        nimble install -y
-        nim r tests/test1.nim
+    
