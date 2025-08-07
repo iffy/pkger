@@ -3,10 +3,10 @@ on:
   push:
 
 jobs:
-  continue-on-error: true
   tests:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         nimversion:
           - binary:stable
