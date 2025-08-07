@@ -28,4 +28,9 @@ jobs:
     - name: Test
       run: |
         nimble install -y
-        nim c -r tests/test1.nim
+        nim r tests/test1.nim
+    - name: Upgrade nimble
+      run: |
+        nimble install -y nimble
+        nimble install -y
+        nim r tests/test1.nim
