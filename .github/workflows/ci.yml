@@ -17,8 +17,7 @@ jobs:
           - windows-latest
         nimbleversion:
           - 0.13.1
-          - 0.15.2
-          - 0.16.2
+          - 0.14.2
     steps:
     - uses: actions/checkout@v1
     - uses: iffy/install-nim@v5
