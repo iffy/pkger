@@ -21,6 +21,9 @@ jobs:
         version: ${{ matrix.nimversion }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Versions
+        nim -V
+        nimble --version
     - name: Test
       run: |
         nimble install -y
