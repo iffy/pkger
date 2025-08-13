@@ -1,3 +1,7 @@
+# v0.3.2 - 2025-08-13
+
+- **FIX:** Improve error messages
+
 # v0.3.1 - 2025-08-13
 
 - **FIX:** Improve error for missing files
