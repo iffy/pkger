@@ -50,7 +50,11 @@ proc lookupPackageFromRegistry*(ctx: PkgerContext, name: string): Option[ReqSour
     ctx.updatePackagesRepo()
   if not packages_json.fileExists():
     raise ValueError.newException("Failed to get packages repo")
-  let data = parseJson(newFileStream(packages_json, fmRead))
+  let data = block:
+    let fs  = newFileStream(packages_json, fmRead)
+    if fs == nil:
+      raise ValueError.newException("Failed to read: " & packages_json)
+    parseJson(fs)
   for item in data:
     let thisname = item{"name"}.getStr()
     if thisname == name:
@@ -77,7 +81,12 @@ proc nameFromURL*(ctx: PkgerContext, url: string): string =
     if req.src.url == url:
       return req.pkgname
   
-  let data = parseJson(newFileStream(ctx.packages_repo_dir()/"packages.json", fmRead))
+  let data = block:
+    let fname = ctx.packages_repo_dir()/"packages.json"
+    let fs = newFileStream(fname, fmRead)
+    if fs == nil:
+      raise ValueError.newException("Failed to read " & fname)
+    parseJson(fs)
   for item in data:
     let thisurl = item{"url"}.getStr()
     if thisurl == url:
