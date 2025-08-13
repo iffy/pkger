@@ -1,3 +1,7 @@
+# v0.3.1 - 2025-08-13
+
+- **FIX:** Improve error for missing files
+
 # v0.3.0 - 2025-03-12
 
 - **NEW:** Added a 'remove' command
