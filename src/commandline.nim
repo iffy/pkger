@@ -28,13 +28,18 @@ proc runsh*(args: seq[string], workingDir = "") =
   var logline = if workingDir == "": "$ " else: workingDir.niceDir & " $ "
   logline.add(args.mapIt(quoteShell(it)).join(" "))
   info &"[EXEC] {logline}"
-  var p = startProcess(cmd,
-    workingDir = workingDir,
-    args = otherargs,
-    options = {poUsePath, poParentStreams})
-  let pid = p.processID()
-  let rc = p.waitForExit()
-  p.close()
+  try:
+    var p = startProcess(cmd,
+      workingDir = workingDir,
+      args = otherargs,
+      options = {poUsePath, poParentStreams})
+    let pid = p.processID()
+    let rc = p.waitForExit()
+    p.close()
+  except:
+    error &"[EXEC] error running {logline}"
+    error getCurrentExceptionMsg()
+    raise
   if rc != 0:
     error &"[{pid}] FAILED {rc}"
     raise ValueError.newException("Error running: " & $args)
@@ -47,7 +52,12 @@ proc runshout*(args: seq[string], workingDir = "", silent = false): string =
   logline.add(args.mapIt(quoteShell(it)).join(" "))
   if not silent:
     info &"[EXEC] {logline}"
-  execProcess(cmd,
-    workingDir = workingDir,
-    args = otherargs,
-    options = {poUsePath})
+  try:
+    execProcess(cmd,
+      workingDir = workingDir,
+      args = otherargs,
+      options = {poUsePath})
+  except:
+    error &"[EXEC] error running {logline}"
+    error getCurrentExceptionMsg()
+    raise
