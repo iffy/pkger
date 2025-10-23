@@ -1,6 +1,8 @@
 on:
   pull_request:
   push:
+  release:
+    types: [published]
 
 jobs:
   tests:
@@ -36,4 +38,73 @@ jobs:
       run: |
         nimble install -y
         nim r tests/test1.nim
+    - name: Build
+      shell: bash
+      run: |
+        nim c -d:release -o:pkger src/pkger.nim
+    - name: Package and Upload Release Asset
+      if: github.event_name == 'release'
+      shell: bash
+      run: |
+        # Normalize OS and arch names
+        os=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
+        arch=$(echo "${{ runner.arch }}" | tr '[:upper:]' '[:lower:]' | sed 's/x64/amd64/')
+        bin_name="pkger"
+        
+        if [ "$os" = "windows" ]; then
+          bin_name="pkger.exe"
+          if [ -e "pkger" ]; then
+            mv pkger pkger.exe
+          fi
+        fi
+        
+        # Create tar.gz
+        tar -czf "pkger-${os}-${arch}.tgz" "$bin_name"
+        
+        # Upload to release using GitHub CLI
+        gh release upload ${{ github.event.release.tag_name }} "pkger-${os}-${arch}.tgz" --clobber
+
+  binaries:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        nimversion:
+          - binary:stable
+        os:
+          - ubuntu-latest
+          - macOS-13
+          - windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: iffy/install-nim@v5
+      with:
+        version: ${{ matrix.nimversion }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Deps
+      run: nimble install -y
+    - name: Build
+      run: nim c -d:release -o:pkger src/pkger.nim
+    - name: Package and Upload
+      if: github.event_name == 'release'
+      shell: bash
+      run: |
+        # Normalize OS and arch names
+        os=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
+        arch=$(echo "${{ runner.arch }}" | tr '[:upper:]' '[:lower:]' | sed 's/x64/amd64/')
+        bin_name="pkger"
+        
+        if [ "$os" = "windows" ]; then
+          bin_name="pkger.exe"
+          if [ -e "pkger" ]; then
+            mv pkger pkger.exe
+          fi
+        fi
+        
+        # Create tar.gz
+        tar -czf "pkger-${os}-${arch}.tgz" "$bin_name"
+        
+        # Upload to release using GitHub CLI
+        gh release upload ${{ github.event.release.tag_name }} "pkger-${os}-${arch}.tgz" --clobber
     
