@@ -38,31 +38,6 @@ jobs:
       run: |
         nimble install -y
         nim r tests/test1.nim
-    - name: Build
-      shell: bash
-      run: |
-        nim c -d:release -o:pkger src/pkger.nim
-    - name: Package and Upload Release Asset
-      if: github.event_name == 'release'
-      shell: bash
-      run: |
-        # Normalize OS and arch names
-        os=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
-        arch=$(echo "${{ runner.arch }}" | tr '[:upper:]' '[:lower:]' | sed 's/x64/amd64/')
-        bin_name="pkger"
-        
-        if [ "$os" = "windows" ]; then
-          bin_name="pkger.exe"
-          if [ -e "pkger" ]; then
-            mv pkger pkger.exe
-          fi
-        fi
-        
-        # Create tar.gz
-        tar -czf "pkger-${os}-${arch}.tgz" "$bin_name"
-        
-        # Upload to release using GitHub CLI
-        gh release upload ${{ github.event.release.tag_name }} "pkger-${os}-${arch}.tgz" --clobber
 
   binaries:
     runs-on: ${{ matrix.os }}
@@ -83,7 +58,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Deps
-      run: nimble install -y
+      run: |
+        nimble install -y
+        nimble install changer -y
     - name: Build
       run: nim c -d:release -o:pkger src/pkger.nim
     - name: Package and Upload
@@ -93,6 +70,7 @@ jobs:
         # Normalize OS and arch names
         os=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
         arch=$(echo "${{ runner.arch }}" | tr '[:upper:]' '[:lower:]' | sed 's/x64/amd64/')
+        ver="$(changer current-version)"
         bin_name="pkger"
         
         if [ "$os" = "windows" ]; then
@@ -102,9 +80,9 @@ jobs:
           fi
         fi
         
-        # Create tar.gz
-        tar -czf "pkger-${os}-${arch}.tgz" "$bin_name"
+        tarname="pkger-${os}-${arch}-v${ver}.tgz"
+        tar -czf "$tarname" "$bin_name"
         
         # Upload to release using GitHub CLI
-        gh release upload ${{ github.event.release.tag_name }} "pkger-${os}-${arch}.tgz" --clobber
+        gh release upload ${{ github.event.release.tag_name }} "tarname" --clobber
     
