@@ -73,3 +73,12 @@ type
     name: string
     version: string
     sha: string
+
+  ContextualPinnedReq* = tuple
+    ctx: PkgerContext
+    pinned: PinnedReq
+
+  PkgerContext* = object
+    rootDir*: string
+    workDir*: string
+    depsDir*: string

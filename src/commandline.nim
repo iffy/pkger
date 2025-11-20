@@ -28,13 +28,15 @@ proc runsh*(args: seq[string], workingDir = "") =
   var logline = if workingDir == "": "$ " else: workingDir.niceDir & " $ "
   logline.add(args.mapIt(quoteShell(it)).join(" "))
   info &"[EXEC] {logline}"
+  var rc: int
+  var pid: int
   try:
     var p = startProcess(cmd,
       workingDir = workingDir,
       args = otherargs,
       options = {poUsePath, poParentStreams})
-    let pid = p.processID()
-    let rc = p.waitForExit()
+    pid = p.processID()
+    rc = p.waitForExit()
     p.close()
   except:
     error &"[EXEC] error running {logline}"

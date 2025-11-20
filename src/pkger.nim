@@ -8,7 +8,6 @@ import argparse
 
 import ./objs; export objs
 import ./context; export context
-import ./deps
 import ./nimblefiles
 import ./packages; export packages
 
@@ -61,7 +60,7 @@ proc ensureLinuxStylePath(x: string): string =
     x
 
 proc refreshNimCfg*(ctx: PkgerContext) =
-  let pinned = ctx.getPinnedReqs()
+  let pinned = ctx.getImmediatePinnedReqs()
   var nimPaths: seq[string]
   for pin in pinned:
     let srcPath = ctx.ondiskPath(pin.toReq())
@@ -90,7 +89,7 @@ proc use(ctx: PkgerContext, pkg: ReqDesc, parent = ""): seq[PinnedReq] =
 
 proc cmd_remove(ctx: PkgerContext, pkg: ReqDesc) =
   let name = pkg.string
-  let pinned = ctx.getPinnedReqs()
+  let pinned = ctx.getImmediatePinnedReqs()
   var newpinned: seq[PinnedReq]
   for pin in pinned:
     if pin.pkgname == name:
@@ -102,13 +101,15 @@ proc cmd_remove(ctx: PkgerContext, pkg: ReqDesc) =
 
 proc cmd_fetch(ctx: PkgerContext) =
   ## Fetch all the source packages that are missing
-  let pinned = ctx.getPinnedReqs().sorted(proc (a,b: PinnedReq): int =
-    cmp(a.pkgname, b.pkgname)
+  let pinned = ctx.getRecursivePinnedReqs().sorted(proc (a,b: ContextualPinnedReq): int =
+    cmp(a.pinned.pkgname, b.pinned.pkgname)
   )
   var newpinned: seq[PinnedReq]
-  for pin in pinned:
+  for (octx, pin) in pinned:
     stdout.write(pin.pkgname & " ...")
-    newpinned.add(ctx.ensurePresent(pin.toReq()))
+    let res = ctx.ensurePresent(pin.toReq())
+    if ctx == octx:
+      newpinned.add(res)
     stdout.write(" OK\n")
   ctx.setPinnedReqs(newpinned)
   ctx.refreshNimCfg()

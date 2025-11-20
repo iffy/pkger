@@ -1,17 +1,13 @@
 import std/os
 import std/json
 
+import ./objs
+
 template TODO*(x: string) =
   when defined(release):
     {.fatal: x .}
   else:
     echo "TODO: " & x
-
-type
-  PkgerContext* = object
-    rootDir*: string
-    workDir*: string
-    depsDir*: string
 
 proc pkgerContext*(workDir: string): PkgerContext =
   ## Given a working directory path,

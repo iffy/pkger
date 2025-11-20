@@ -1,3 +1,4 @@
+{.experimental: "codeReordering".}
 import std/json
 import std/logging
 import std/options
@@ -16,7 +17,6 @@ import ./context
 import ./objs
 import ./commandline
 import ./nimblefiles
-import ./deps
 
 #-----------------------------------------------------------------
 # Package registry
@@ -76,8 +76,8 @@ proc packageDownloadDir*(ctx: PkgerContext): string =
   ctx.depsDir/"lazy"
 
 proc nameFromURL*(ctx: PkgerContext, url: string): string =
-  let pinned = ctx.getPinnedReqs()
-  for req in pinned:
+  let pinned = ctx.getRecursivePinnedReqs()
+  for (octx, req) in pinned:
     if req.src.url == url:
       return req.pkgname
   
@@ -256,7 +256,8 @@ proc toReq*(ctx: PkgerContext, reqdesc: ReqDesc, parent: string): Req =
   let version = parseVersion(if parts.len > 1: parts[1] else: "")
   if dirExists(name_or_url):
     # localpath
-    let pkgname = getProjectNameFromNimble(name_or_url)
+    let nimbleName = getProjectNameFromNimble(name_or_url)
+    let pkgname = if nimbleName != "": nimbleName else: name_or_url.splitFile.name
     return (
       pkgname: pkgname,
       parent: parent,
@@ -373,7 +374,7 @@ proc getNimPathsFromProject*(dirname: string): seq[string] =
     result.add(data.srcDir)
 
 proc installedPackages*(ctx: PkgerContext): seq[InstalledPackage] =
-  for pin in ctx.getPinnedReqs():
+  for pin in ctx.getImmediatePinnedReqs():
     let path = ctx.ondiskPath(pin.toReq())
     if not dirExists(path):
       continue
@@ -389,20 +390,41 @@ proc installedPackages*(ctx: PkgerContext): seq[InstalledPackage] =
 
 proc allReqs*(ctx: PkgerContext): seq[RawReq] =
   ## List all known requirements (without fetching anything) for this project
-  var packagesToProcess = @[(ctx.rootDir, "")]
-  for pin in ctx.getPinnedReqs():
-    let path = ctx.ondiskPath(pin.toReq())
+  var packagesToProcess = @[(ctx, ctx.rootDir, "")]
+  for (octx, pin) in ctx.getRecursivePinnedReqs():
+    let path = octx.ondiskPath(pin.toReq())
     if dirExists(path):
-      packagesToProcess.add((path, pin.parent))
+      packagesToProcess.add((octx, path, pin.pkgname))
   while packagesToProcess.len > 0:
-    let (path, parent) = packagesToProcess.pop()
+    let (octx, path, proj_name) = packagesToProcess.pop()
+    # Add pinned reqs if this is a pkger project
+    block:
+      var subctx: PkgerContext
+      let isPkgerProject = try:
+        subctx = pkgerContext(path)
+        subctx.rootDir == path
+      except ValueError:
+        false
+      if isPkgerProject:
+        for pin in subctx.getImmediatePinnedReqs():
+          let label = case pin.src.kind
+            of fmLocalFile: pin.src.url
+            of fmGitRepo, fmHgRepo: pin.pkgname
+            else: pin.pkgname
+          result.add((
+            name: pin.pkgname,
+            label: label,
+            parent: proj_name,
+            version: pin.sha,
+          ))
+    # Add nimble requires
     for reqdesc in listNimbleRequires(path):
-      let ndesc = reqdesc.ReqNimbleDesc.parse()
+      let ndesc = ReqNimbleDesc(reqdesc).parse()
       if ndesc.isUrl:
         result.add((
-          name: ctx.nameFromURL(ndesc.url),
+          name: octx.nameFromURL(ndesc.url),
           label: ndesc.url,
-          parent: parent,
+          parent: proj_name,
           version: ndesc.version,
         ))
       else:
@@ -411,7 +433,65 @@ proc allReqs*(ctx: PkgerContext): seq[RawReq] =
         result.add((
           name: ndesc.name,
           label: ndesc.name,
-          parent: parent,
+          parent: proj_name,
           version: ndesc.version,
         ))
     
+proc `%`*(x: ReqSource): JsonNode =
+  %* {
+    "url": x.url,
+    "kind": x.kind,
+  }
+
+proc `%`*(x: PinnedReq): JsonNode =
+  %* {
+    "pkgname": x.pkgname,
+    "parent": x.parent,
+    "src": x.src,
+    "sha": x.sha,
+  }
+
+proc readDepsFile(ctx: PkgerContext): JsonNode =
+  try:
+    parseJson(readFile(ctx.depsDir/"deps.json"))
+  except:
+    %* {
+      "pinned": {}
+    }
+
+proc writeDepsFile(ctx: PkgerContext, data: JsonNode) =
+  writeFile(ctx.depsDir/"deps.json", data.pretty())
+
+proc getImmediatePinnedReqs*(ctx: PkgerContext): seq[PinnedReq] =
+  let data = readDepsFile(ctx)
+  for name in data["pinned"].keys():
+    let item = data["pinned"][name]
+    let pinned = to(item, PinnedReq)
+    result.add(pinned)
+
+proc getRecursivePinnedReqs*(ctx: PkgerContext): seq[ContextualPinnedReq] =
+  let immediate = ctx.getImmediatePinnedReqs()
+  for pinned in immediate:
+    result.add((ctx, pinned))
+    # check this package's deps
+    let path = ctx.ondiskPath(pinned.toReq())
+    let subctx = try:
+        pkgerContext(path)
+      except ValueError:
+        continue
+    if subctx.rootDir == ctx.rootDir:
+      # went up the path to find the original
+      continue
+    result.add(subctx.getRecursivePinnedReqs())
+
+proc setPinnedReqs*(ctx: PkgerContext, pinned: seq[PinnedReq]) =
+  var data = readDepsFile(ctx)
+  data["pinned"] = newJObject()
+  for req in pinned:
+    data["pinned"][req.pkgname] = %req
+  ctx.writeDepsFile(data)
+
+proc add*(ctx: PkgerContext, req: seq[PinnedReq]) =
+  var existing = ctx.getImmediatePinnedReqs()
+  existing.add(req)
+  ctx.setPinnedReqs(existing)

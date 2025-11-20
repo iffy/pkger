@@ -329,6 +329,21 @@ suite "status":
       echo status
       check "[x] https://github.com/iffy/nim-argparse.git" in status
 
+  test "recurse pkger":
+    withinTmpDir:
+      createDir("pkg1")
+      cd("pkg1"):
+        cli @["init"]
+        cli @["use", "hmac@0.3.2"]
+      createDir("pkg2")
+      cd("pkg2"):
+        cli @["init"]
+        cli @["use", "argparse"]
+        cli @["use", ".."/"pkg1"]
+        var status = cliout @["status"]
+        echo status
+        check "[ ] hmac" in status
+
 suite "ReqNimbleDesc":
 
   test "basic":
