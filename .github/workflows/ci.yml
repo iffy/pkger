@@ -9,11 +9,11 @@ jobs:
       fail-fast: true
       matrix:
         nimversion:
-          - binary:stable
-          - binary:1.6.18
+          - stable
+          - 1.6.18
         os:
           - ubuntu-latest
-          - macOS-13
+          - macOS-latest
           - windows-latest
         nimbleversion:
           - 0.13.1
