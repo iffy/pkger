@@ -14,9 +14,6 @@ jobs:
           - ubuntu-latest
           - macOS-latest
           - windows-latest
-        nimbleversion:
-          - 0.13.1
-          - 0.14.2
     steps:
     - uses: actions/checkout@v1
     - uses: iffy/install-nim@v5
@@ -24,9 +21,6 @@ jobs:
         version: ${{ matrix.nimversion }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Upgrade nimble
-      run: |
-        nimble install -y nimble@${{ matrix.nimbleversion }}
     - name: Versions
       run: |
         nim -V
