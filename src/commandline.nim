@@ -28,8 +28,8 @@ proc runsh*(args: seq[string], workingDir = "") =
   var logline = if workingDir == "": "$ " else: workingDir.niceDir & " $ "
   logline.add(args.mapIt(quoteShell(it)).join(" "))
   info &"[EXEC] {logline}"
-  var rc: int
   var pid: int
+  var rc: int
   try:
     var p = startProcess(cmd,
       workingDir = workingDir,
